@@ -5,7 +5,7 @@ import {
   CheckCircle, ArrowRight, Shield, Zap, Sparkles, AlertCircle,
   TrendingUp, HardDrive, Cpu, RefreshCw, Eye, Download, Trash2,
   ChevronRight, Check, FileCheck, ArrowUpRight, X, CheckCircle2,
-  Copy, Clock, Tag, ListOrdered, FileSpreadsheet, Share2
+  Copy, Clock, Tag, ListOrdered, FileSpreadsheet, Share2, SearchCode
 } from 'lucide-react';
 
 export default function App() {
@@ -24,7 +24,7 @@ export default function App() {
     return saved ? JSON.parse(saved) : { fullName: '', email: '', password: '' };
   });
 
-  // Default Demo Documents (Shown for demo account or logged-in state without custom storage)
+  // Default Demo Documents
   const defaultDemoDocs = [
     { 
       id: 1, 
@@ -51,7 +51,21 @@ Key Architectural Pillars:
         'Enforces IAM zero-trust authentication across microservice gateways.'
       ],
       keywords: ['Cloud Architecture', 'Load Balancer', 'Auto-scaling', 'High Availability', 'Multi-Region', 'Zero Trust'],
-      outline: ['1. Architectural Overview', '2. Infrastructure & Scalability', '3. Security & IAM Policies', '4. Disaster Recovery Framework']
+      outline: ['1. Architectural Overview', '2. Infrastructure & Scalability', '3. Security & IAM Policies', '4. Disaster Recovery Framework'],
+      knowledgeGaps: {
+        missingInfo: [
+          'Does not compare financial cost models or estimated monthly cloud expenditure across AWS, Azure, or GCP.',
+          'Lacks explicit details on encryption key rotation cycles (KMS policies).'
+        ],
+        unansweredQuestions: [
+          'What happens to active user sessions during a database failover transition?',
+          'What are the compliance penalties if cross-region data replication violates regional data residency laws?'
+        ],
+        improvements: [
+          'Include a side-by-side cost estimation table for bandwidth and storage scaling.',
+          'Add a threat modeling diagram covering external DDoS mitigation.'
+        ]
+      }
     },
     { 
       id: 2, 
@@ -78,43 +92,37 @@ Core Specifications:
         'Strict SOC2 Type II and GDPR audit compliance required.'
       ],
       keywords: ['SRS Document', 'Memory Limits', 'Security Compliance', 'REST APIs', 'Latency SLA', 'SOC2'],
-      outline: ['1. System Scope', '2. Performance Metrics', '3. API Benchmarks', '4. Compliance Checklist']
-    },
-    { 
-      id: 3, 
-      name: 'Quarterly_AI_Research_Report.pdf', 
-      sizeMB: 5.8, 
-      date: '2026-09-28', 
-      tag: 'Research', 
-      status: 'Indexed',
-      readTime: '12 min read',
-      wordCount: 5800,
-      complexity: 'Advanced',
-      briefSummary: 'Analyzes major breakthroughs in Retrieval-Augmented Generation (RAG), vector database semantic indexing, and fine-tuning open LLMs.',
-      detailedSummary: `AI & Machine Learning Research Synthesis:
-This quarterly research report evaluates state-of-the-art developments in Large Language Models (LLMs), RAG optimization pipelines, and high-dimensional vector search.
-
-Key Research Findings:
-1. Retrieval-Augmented Generation (RAG) Advances: Implementing hybrid search (combining BM25 keyword matching with dense vector embeddings) yields a 28% increase in retrieval precision compared to pure vector search.
-2. LLM Context Window & Hallucination Mitigation: Contextual compression techniques reduce token consumption by 40% while keeping context relevance score above 92%.
-3. Vector Database Benchmarking: PGVector and Pinecone benchmarks show chunking size of 512 tokens with 50-token overlap provides optimal trade-off between query speed and semantic continuity.
-4. Model Quantization: 4-bit and 8-bit quantization models achieve 95% of FP16 accuracy while decreasing memory footprint by 60%.`,
-      keyTakeaways: [
-        'Hybrid search (Dense + BM25) boosts retrieval accuracy by 28%.',
-        'Optimal chunking strategy identified: 512 tokens with 50-token overlap.',
-        '4-bit quantization reduces GPU VRAM consumption by 60% with negligible loss.'
-      ],
-      keywords: ['RAG Pipeline', 'LLM Fine-tuning', 'Vector DB', 'Semantic Search', 'Embeddings', 'Quantization'],
-      outline: ['1. Executive AI Overview', '2. RAG Benchmarking', '3. Vector Database Metrics', '4. Quantization Analysis']
+      outline: ['1. System Scope', '2. Performance Metrics', '3. API Benchmarks', '4. Compliance Checklist'],
+      knowledgeGaps: {
+        missingInfo: [
+          'Does not specify fallbacks if the primary API rate limiting gateway goes offline.',
+          'Lacks detailed database migration scripts for updating microservice schemas.'
+        ],
+        unansweredQuestions: [
+          'How are bulk document batch uploads throttled during peak hours?',
+          'What is the maximum allowed file payload size per single REST API request?'
+        ],
+        improvements: [
+          'Define circuit breaker patterns for API service degradation.',
+          'Provide benchmark graphs showing RAM consumption under 10,000 concurrent vector queries.'
+        ]
+      }
     }
   ];
 
   // User Documents State (Per-User Storage)
   const [documents, setDocuments] = useState(() => {
-    if (!user || !user.email) return defaultDemoDocs;
+    if (!user || !user.email) return [];
     const userStorageKey = `clouddoc_docs_${user.email.toLowerCase()}`;
     const savedDocs = localStorage.getItem(userStorageKey);
-    return savedDocs ? JSON.parse(savedDocs) : defaultDemoDocs;
+    return savedDocs !== null ? JSON.parse(savedDocs) : defaultDemoDocs;
+  });
+
+  // Track Asked Questions per User
+  const [questionsCount, setQuestionsCount] = useState(() => {
+    if (!user || !user.email) return 0;
+    const savedCount = localStorage.getItem(`clouddoc_qcount_${user.email.toLowerCase()}`);
+    return savedCount !== null ? JSON.parse(savedCount) : 0;
   });
 
   // Sync Documents to LocalStorage
@@ -125,26 +133,30 @@ Key Research Findings:
     }
   }, [documents, user]);
 
-  // Analytics Metrics
+  // Sync Question Count
+  useEffect(() => {
+    if (user && user.email) {
+      localStorage.setItem(`clouddoc_qcount_${user.email.toLowerCase()}`, JSON.stringify(questionsCount));
+    }
+  }, [questionsCount, user]);
+
+  // Analytics Metrics (Calculated Dynamically)
   const totalStorageGB = 10.0;
-  const storageUsedMB = documents.reduce((acc, curr) => acc + curr.sizeMB, 0);
+  const storageUsedMB = documents.reduce((acc, curr) => acc + (curr.sizeMB || 0), 0);
   const storageUsedGB = (storageUsedMB / 1024).toFixed(2);
-  const [questionsCount, setQuestionsCount] = useState(14);
+  const memoryUsedMB = documents.length === 0 ? 0 : Math.round(documents.length * 128);
 
-  // Ask Document / Summary Customization State
-  const [selectedDocId, setSelectedDocId] = useState(documents[0]?.id || 1);
+  // Ask Document / Gap Detector State
+  const [selectedDocId, setSelectedDocId] = useState(documents[0]?.id || null);
   const selectedDoc = documents.find(d => d.id === Number(selectedDocId)) || documents[0] || {};
-  const [summaryFormat, setSummaryFormat] = useState('detailed'); // 'brief', 'detailed', 'takeaways'
-  const [activeDocSubTab, setActiveDocSubTab] = useState('summary'); // 'summary', 'outline', 'keywords'
-
-  const [docQuestions, setDocQuestions] = useState([
-    { q: 'What is the primary architectural or research focus of this document?', a: 'The document highlights key deployment standards, memory optimization, latency SLA targets, and vector search strategies.' }
-  ]);
+  const [summaryFormat, setSummaryFormat] = useState('detailed');
+  
+  const [docQuestions, setDocQuestions] = useState([]);
   const [newQuestion, setNewQuestion] = useState('');
 
   // Compare Documents State
-  const [docA, setDocA] = useState(documents[0]?.id || 1);
-  const [docB, setDocB] = useState(documents[1]?.id || 2);
+  const [docA, setDocA] = useState(documents[0]?.id || '');
+  const [docB, setDocB] = useState(documents[1]?.id || '');
   const [compareResult, setCompareResult] = useState(null);
 
   // Flashcards & MCQs State
@@ -156,7 +168,7 @@ Key Research Findings:
   // Chatbot State
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [botMessages, setBotMessages] = useState([
-    { sender: 'bot', text: 'Hello! I am your CloudDoc AI assistant. How can I help you analyze your documents today?' }
+    { sender: 'bot', text: 'Hello! I am your CloudDoc AI assistant. Ask me to identify knowledge gaps, missing costs, or unanswered questions in your documents!' }
   ]);
   const [botInput, setBotInput] = useState('');
 
@@ -182,13 +194,11 @@ Key Research Findings:
     return { text: 'Strong password', color: 'bg-emerald-500', score: 3 };
   }, [user.password]);
 
-  // Helper to toggle auth mode cleanly
   const toggleAuthMode = (mode) => {
     setAuthMode(mode);
     setUser({ fullName: '', email: '', password: '' });
   };
 
-  // Static Data for Revision
   const flashcards = [
     { question: 'What is Cloud Document Intelligence?', answer: 'It is the integration of AI models (LLMs, OCR, NLP) with cloud storage to automatically extract, summarize, search, and analyze unstructured documents.' },
     { question: 'How does Document Vectorization work?', answer: 'Text from documents is converted into numerical vector embeddings, allowing semantic search and high-speed similarity querying.' },
@@ -204,13 +214,12 @@ Key Research Findings:
     },
     {
       id: 2,
-      question: 'What is the primary benefit of CloudDoc AI Document Comparison tool?',
-      options: ['Encrypting PDFs', 'Identifying semantic differences and calculating similarity percentage', 'Formatting text fonts', 'Converting DOCX to MP3'],
+      question: 'What is the primary benefit of CloudDoc AI Knowledge Gap Detector?',
+      options: ['Formatting document fonts', 'Identifying missing info, costs, security risks, and unanswered questions', 'Deleting duplicate files', 'Converting PDFs to audio'],
       correct: 1
     }
   ];
 
-  // REAL FILE UPLOAD HANDLER
   const handleFileUpload = (e) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
@@ -242,10 +251,24 @@ Key Points Extracted:
         keyTakeaways: [
           `Custom file "${fileName}" processed successfully into vector store.`,
           'Structured sections indexed for fast AI retrieval.',
-          'Ready for interactive Q&A and side-by-side comparison.'
+          'Ready for interactive Q&A, Gap Analysis, and comparison.'
         ],
         keywords: ['Uploaded File', 'Custom Document', 'Vector Indexed', 'AI Processed'],
-        outline: ['1. File Header', '2. Executive Summary', '3. Technical Specs', '4. Annexure']
+        outline: ['1. File Header', '2. Executive Summary', '3. Technical Specs', '4. Annexure'],
+        knowledgeGaps: {
+          missingInfo: [
+            `The document explains operational workflows in "${fileName}" but does not compare implementation costs or cloud infrastructure expenses.`,
+            'Lacks explicit discussion regarding data security risks, disaster mitigation, or backup schedules.'
+          ],
+          unansweredQuestions: [
+            `What are the concrete scalability limits when concurrent user requests exceed standard thresholds?`,
+            `How does the architecture handle corrupted or invalid file payload formats?`
+          ],
+          improvements: [
+            'Add a financial analysis section addressing cost vs performance trade-offs.',
+            'Include a comparative benchmark matrix against industry standards.'
+          ]
+        }
       };
       setDocuments(prev => [newDoc, ...prev]);
     });
@@ -258,7 +281,6 @@ Key Points Extracted:
     triggerToast('Document removed from cloud storage.');
   };
 
-  // Copy Summary to Clipboard
   const handleCopySummary = () => {
     if (!selectedDoc.name) return;
     let content = selectedDoc.detailedSummary;
@@ -269,7 +291,6 @@ Key Points Extracted:
     triggerToast('Summary copied to clipboard!');
   };
 
-  // Download Summary as TXT
   const handleDownloadSummary = () => {
     if (!selectedDoc.name) return;
     const content = `CloudDoc AI Report - ${selectedDoc.name}\n\n` +
@@ -319,10 +340,13 @@ Key Points Extracted:
       registeredUsers.push(newUser);
       localStorage.setItem('clouddoc_registered_users', JSON.stringify(registeredUsers));
 
-      // NEW USER STARTS WITH 0 DOCUMENTS (CLEAN SLATE FOR TEACHER EVALUATION)
+      // NEW USER STARTS WITH ABSOLUTE ZERO METRICS & ZERO DOCUMENTS
       const userKey = `clouddoc_docs_${newUser.email}`;
       localStorage.setItem(userKey, JSON.stringify([]));
+      localStorage.setItem(`clouddoc_qcount_${newUser.email}`, JSON.stringify(0));
+      
       setDocuments([]);
+      setQuestionsCount(0);
 
       localStorage.setItem('clouddoc_auth', 'true');
       localStorage.setItem('clouddoc_current_user', JSON.stringify(newUser));
@@ -334,7 +358,6 @@ Key Points Extracted:
         u => u.email.toLowerCase() === user.email.toLowerCase() && u.password === user.password
       );
 
-      // Allow demo fallback if logging in as rohan or first time
       const loggedUser = existingUser || {
         fullName: user.fullName || user.email.split('@')[0] || 'Rohan Sharma',
         email: user.email || 'rohan@example.com',
@@ -343,7 +366,10 @@ Key Points Extracted:
 
       const userKey = `clouddoc_docs_${loggedUser.email.toLowerCase()}`;
       const savedUserDocs = localStorage.getItem(userKey);
-      setDocuments(savedUserDocs ? JSON.parse(savedUserDocs) : defaultDemoDocs);
+      setDocuments(savedUserDocs !== null ? JSON.parse(savedUserDocs) : defaultDemoDocs);
+
+      const savedCount = localStorage.getItem(`clouddoc_qcount_${loggedUser.email.toLowerCase()}`);
+      setQuestionsCount(savedCount !== null ? JSON.parse(savedCount) : (savedUserDocs !== null ? 0 : 14));
 
       localStorage.setItem('clouddoc_auth', 'true');
       localStorage.setItem('clouddoc_current_user', JSON.stringify(loggedUser));
@@ -405,21 +431,18 @@ Key Points Extracted:
     setBotInput('');
 
     setTimeout(() => {
-      let botReply = 'I am here to help you navigate CloudDoc AI! You can upload real files, ask questions, compare documents, or test yourself in Study Mode.';
-      if (userMsg.toLowerCase().includes('upload')) {
-        botReply = 'To upload documents, go to "My Documents" or click "Upload New Document" on the Dashboard, then select any file from your computer!';
+      let botReply = 'I am here to help you navigate CloudDoc AI! You can upload real files, run Knowledge Gap Detection, ask questions, or compare documents.';
+      if (userMsg.toLowerCase().includes('gap') || userMsg.toLowerCase().includes('missing')) {
+        botReply = 'Our Knowledge Gap Detector identifies missing information (costs, security risks), unanswered questions, and document improvements!';
+      } else if (userMsg.toLowerCase().includes('upload')) {
+        botReply = 'To upload documents, go to "My Documents" or click "Upload New Document" on the Dashboard!';
       } else if (userMsg.toLowerCase().includes('compare')) {
-        botReply = 'Our Document Comparison feature uses semantic NLP to find common points and key differences between any two uploaded files.';
-      } else if (userMsg.toLowerCase().includes('summary')) {
-        botReply = 'You can toggle between "Brief", "Detailed", and "Key Takeaways" inside the "Ask Document" view!';
+        botReply = 'Our Document Comparison feature uses semantic NLP to find common points and key differences between any two files.';
       }
       setBotMessages(prev => [...prev, { sender: 'bot', text: botReply }]);
     }, 600);
   };
 
-  // ----------------------------------------------------
-  // AUTH / LOGIN SCREEN
-  // ----------------------------------------------------
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4">
@@ -516,9 +539,6 @@ Key Points Extracted:
     );
   }
 
-  // ----------------------------------------------------
-  // MAIN DASHBOARD APPLICATION
-  // ----------------------------------------------------
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex relative overflow-hidden font-sans">
       
@@ -556,6 +576,7 @@ Key Points Extracted:
             {[
               { id: 'dashboard', label: 'Dashboard', icon: PieChart },
               { id: 'documents', label: 'My Documents', icon: FileText },
+              { id: 'gaps', label: 'Knowledge Gap Detector', icon: SearchCode },
               { id: 'ask', label: 'Ask Document', icon: MessageSquare },
               { id: 'compare', label: 'Compare Documents', icon: Layers },
               { id: 'study', label: 'Study Mode', icon: BookOpen },
@@ -651,7 +672,7 @@ Key Points Extracted:
                 </div>
                 <div>
                   <p className="text-xs text-slate-400 uppercase font-medium">Memory Used</p>
-                  <h3 className="text-2xl font-bold mt-1">512 MB</h3>
+                  <h3 className="text-2xl font-bold mt-1">{memoryUsedMB} MB</h3>
                 </div>
               </div>
 
@@ -692,12 +713,12 @@ Key Points Extracted:
               </button>
 
               <button 
-                onClick={() => setActiveTab('ask')} 
+                onClick={() => setActiveTab('gaps')} 
                 className="bg-slate-900 hover:bg-slate-800/80 border border-slate-800 p-5 rounded-xl text-left transition-all group"
               >
-                <Sparkles className="w-6 h-6 text-emerald-400 mb-2 group-hover:scale-110 transition-transform" />
-                <h4 className="font-semibold text-sm">AI Analysis & Q&A</h4>
-                <p className="text-xs text-slate-400 mt-1">Read multi-page reports, key summaries, and ask document questions.</p>
+                <SearchCode className="w-6 h-6 text-red-400 mb-2 group-hover:scale-110 transition-transform" />
+                <h4 className="font-semibold text-sm">Knowledge Gap Detector</h4>
+                <p className="text-xs text-slate-400 mt-1">Identify missing info, cost/security risks, and unanswered questions.</p>
               </button>
 
               <button 
@@ -722,7 +743,6 @@ Key Points Extracted:
               </div>
             </div>
 
-            {/* Interactive Upload Zone */}
             <div 
               onClick={() => fileInputRef.current.click()}
               className="border-2 border-dashed border-indigo-500/40 bg-slate-900/50 hover:bg-slate-900 rounded-xl p-8 text-center cursor-pointer transition-all hover:border-indigo-400"
@@ -738,7 +758,6 @@ Key Points Extracted:
               </button>
             </div>
 
-            {/* Table */}
             <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
               <table className="w-full text-left text-sm text-slate-300">
                 <thead className="bg-slate-800/60 text-xs text-slate-400 uppercase">
@@ -781,6 +800,13 @@ Key Points Extracted:
                         <td className="p-4 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <button 
+                              onClick={() => { setSelectedDocId(doc.id); setActiveTab('gaps'); }}
+                              className="p-1.5 hover:bg-slate-800 text-red-400 rounded" 
+                              title="Knowledge Gap Analysis"
+                            >
+                              <SearchCode className="w-4 h-4" />
+                            </button>
+                            <button 
                               onClick={() => { setSelectedDocId(doc.id); setActiveTab('ask'); }}
                               className="p-1.5 hover:bg-slate-800 text-indigo-400 rounded" 
                               title="Analyze Document"
@@ -805,6 +831,106 @@ Key Points Extracted:
           </div>
         )}
 
+        {/* KNOWLEDGE GAP DETECTOR VIEW */}
+        {activeTab === 'gaps' && (
+          <div className="space-y-6 max-w-6xl mx-auto">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  <SearchCode className="w-6 h-6 text-red-400" />
+                  <span>Knowledge Gap Detector</span>
+                </h2>
+                <p className="text-slate-400 text-sm">Identifies missing info, unanswered research questions, and recommendations to strengthen your reports.</p>
+              </div>
+
+              {documents.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-slate-400 font-medium">Select File:</label>
+                  <select 
+                    value={selectedDocId || ''} 
+                    onChange={e => setSelectedDocId(Number(e.target.value))}
+                    className="bg-slate-900 border border-slate-800 text-xs text-indigo-300 font-medium px-3 py-2 rounded-lg focus:outline-none"
+                  >
+                    {documents.map(d => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {documents.length === 0 ? (
+              <div className="p-12 text-center bg-slate-900 border border-slate-800 rounded-xl">
+                <SearchCode className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+                <p className="text-sm text-slate-400">Please upload a document or research paper to run Knowledge Gap Detection.</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* File Overview Banner */}
+                <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl flex justify-between items-center">
+                  <div>
+                    <p className="text-xs text-slate-400 uppercase font-semibold">Active Document</p>
+                    <h3 className="text-base font-bold text-slate-100 mt-1">{selectedDoc.name}</h3>
+                  </div>
+                  <span className="bg-red-500/10 text-red-400 border border-red-500/20 text-xs px-3 py-1 rounded-full font-medium">
+                    AI Gap Audit Complete
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Category 1: Missing Critical Information */}
+                  <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-3">
+                    <div className="flex items-center gap-2 text-red-400">
+                      <AlertCircle className="w-5 h-5" />
+                      <h3 className="font-bold text-sm">Missing Information</h3>
+                    </div>
+                    <p className="text-xs text-slate-400">Critical topics omitted in the document:</p>
+                    <ul className="space-y-2 pt-2">
+                      {selectedDoc.knowledgeGaps?.missingInfo?.map((item, idx) => (
+                        <li key={idx} className="p-3 bg-slate-950 border border-red-500/20 rounded-lg text-xs text-slate-300 leading-relaxed">
+                          • {item}
+                        </li>
+                      )) || <p className="text-xs text-slate-500">No major gaps detected.</p>}
+                    </ul>
+                  </div>
+
+                  {/* Category 2: Unanswered Questions */}
+                  <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-3">
+                    <div className="flex items-center gap-2 text-amber-400">
+                      <HelpCircle className="w-5 h-5" />
+                      <h3 className="font-bold text-sm">Unanswered Questions</h3>
+                    </div>
+                    <p className="text-xs text-slate-400">Open questions that remain unresolved:</p>
+                    <ul className="space-y-2 pt-2">
+                      {selectedDoc.knowledgeGaps?.unansweredQuestions?.map((item, idx) => (
+                        <li key={idx} className="p-3 bg-slate-950 border border-amber-500/20 rounded-lg text-xs text-slate-300 leading-relaxed">
+                          • {item}
+                        </li>
+                      )) || <p className="text-xs text-slate-500">No unresolved questions.</p>}
+                    </ul>
+                  </div>
+
+                  {/* Category 3: Recommended Improvements */}
+                  <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-3">
+                    <div className="flex items-center gap-2 text-emerald-400">
+                      <Sparkles className="w-5 h-5" />
+                      <h3 className="font-bold text-sm">Recommended Additions</h3>
+                    </div>
+                    <p className="text-xs text-slate-400">Actionable ways to strengthen the paper:</p>
+                    <ul className="space-y-2 pt-2">
+                      {selectedDoc.knowledgeGaps?.improvements?.map((item, idx) => (
+                        <li key={idx} className="p-3 bg-slate-950 border border-emerald-500/20 rounded-lg text-xs text-slate-300 leading-relaxed">
+                          • {item}
+                        </li>
+                      )) || <p className="text-xs text-slate-500">Document is well optimized.</p>}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ASK DOCUMENT / AI ANALYSIS VIEW */}
         {activeTab === 'ask' && (
           <div className="space-y-6 max-w-6xl mx-auto">
@@ -814,12 +940,11 @@ Key Points Extracted:
                 <p className="text-slate-400 text-sm">Deep-dive summaries, key takeaways, and question answering.</p>
               </div>
 
-              {/* Document Selector */}
               {documents.length > 0 && (
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-slate-400 font-medium">Select File:</label>
                   <select 
-                    value={selectedDocId} 
+                    value={selectedDocId || ''} 
                     onChange={e => setSelectedDocId(Number(e.target.value))}
                     className="bg-slate-900 border border-slate-800 text-xs text-indigo-300 font-medium px-3 py-2 rounded-lg focus:outline-none"
                   >
@@ -838,7 +963,6 @@ Key Points Extracted:
               </div>
             ) : (
               <>
-                {/* Summary Card */}
                 <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-4">
                     <div className="flex items-center gap-3">
@@ -861,7 +985,6 @@ Key Points Extracted:
                     </div>
                   </div>
 
-                  {/* Summary Format Selector */}
                   <div className="flex gap-2">
                     {[
                       { id: 'detailed', label: 'Detailed Analysis' },
@@ -882,7 +1005,6 @@ Key Points Extracted:
                     ))}
                   </div>
 
-                  {/* Dynamic Summary Display */}
                   <div className="p-4 bg-slate-950 rounded-lg border border-slate-800/80 text-xs text-slate-300 whitespace-pre-line leading-relaxed">
                     {summaryFormat === 'brief' && selectedDoc.briefSummary}
                     {summaryFormat === 'detailed' && selectedDoc.detailedSummary}
@@ -896,7 +1018,6 @@ Key Points Extracted:
                   </div>
                 </div>
 
-                {/* Question Answering Section */}
                 <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
                   <h3 className="font-bold text-sm text-slate-200">Ask Questions About "{selectedDoc.name}"</h3>
                   
