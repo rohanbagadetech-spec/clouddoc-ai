@@ -5,7 +5,8 @@ import {
   CheckCircle, ArrowRight, Shield, Zap, Sparkles, AlertCircle,
   TrendingUp, HardDrive, Cpu, RefreshCw, Eye, Download, Trash2,
   ChevronRight, Check, FileCheck, ArrowUpRight, X, CheckCircle2,
-  Copy, Clock, Tag, ListOrdered, FileSpreadsheet, Share2, SearchCode
+  Copy, Clock, Tag, ListOrdered, FileSpreadsheet, Share2, SearchCode,
+  Network, Sliders, GraduationCap, Briefcase, Award, Bot, Send
 } from 'lucide-react';
 
 export default function App() {
@@ -24,7 +25,7 @@ export default function App() {
     return saved ? JSON.parse(saved) : { fullName: '', email: '', password: '' };
   });
 
-  // Default Demo Documents
+  // Default Demo Documents (Shown ONLY for default demo login, NEVER for newly registered accounts)
   const defaultDemoDocs = [
     { 
       id: 1, 
@@ -52,18 +53,25 @@ Key Architectural Pillars:
       ],
       keywords: ['Cloud Architecture', 'Load Balancer', 'Auto-scaling', 'High Availability', 'Multi-Region', 'Zero Trust'],
       outline: ['1. Architectural Overview', '2. Infrastructure & Scalability', '3. Security & IAM Policies', '4. Disaster Recovery Framework'],
+      adaptiveReading: {
+        beginner: "Imagine a giant digital library that automatically hires extra workers whenever too many visitors arrive. If one building breaks down, a backup building instantly opens across town without losing any books.",
+        college: "This report details hybrid cloud system design. It highlights Layer 7 load balancing to route web traffic efficiently and configures auto-scaling policies triggered when server CPU usage exceeds 70%.",
+        professional: "Enterprise operational blueprint focusing on multi-region high availability, sub-5-minute RTO/RPO disaster recovery, and zero-trust IAM role delegation to minimize operational risks.",
+        expert: "Architectural specification utilizing active-passive replication across AWS/Azure VPC peering. Enforces strict zero-trust subnets, JWT bearer tokens, and automated P95 latency containment under 120ms."
+      },
+      graphNodes: ['AWS VPC Gateway', 'Layer 7 ALB', 'Auto-Scaling Group (>70%)', 'Multi-Region DB', 'Zero Trust IAM'],
       knowledgeGaps: {
         missingInfo: [
           'Does not compare financial cost models or estimated monthly cloud expenditure across AWS, Azure, or GCP.',
-          'Lacks explicit details on encryption key rotation cycles (KMS policies).'
+          'Lacks explicit details on encryption key rotation cycles and KMS policies.'
         ],
         unansweredQuestions: [
-          'What happens to active user sessions during a database failover transition?',
+          'What happens to active user sessions during an automated database failover transition?',
           'What are the compliance penalties if cross-region data replication violates regional data residency laws?'
         ],
         improvements: [
           'Include a side-by-side cost estimation table for bandwidth and storage scaling.',
-          'Add a threat modeling diagram covering external DDoS mitigation.'
+          'Add a threat modeling matrix covering external DDoS mitigation and firewall rules.'
         ]
       }
     },
@@ -93,6 +101,13 @@ Core Specifications:
       ],
       keywords: ['SRS Document', 'Memory Limits', 'Security Compliance', 'REST APIs', 'Latency SLA', 'SOC2'],
       outline: ['1. System Scope', '2. Performance Metrics', '3. API Benchmarks', '4. Compliance Checklist'],
+      adaptiveReading: {
+        beginner: "This document is a rulebook for building software. It explains how fast the computer must answer questions and how much memory it needs to run smoothly.",
+        college: "An engineering specification outlining system constraints, including 120ms latency limits for vector queries and mandatory OpenAPI 3.0 REST interfaces.",
+        professional: "Technical mandate establishing 99.9% uptime SLAs, SOC2 Type II audit logging, and rate limiting at 100 requests per minute per tenant.",
+        expert: "System requirement specification enforcing strict 16GB RAM worker node thresholds and 120ms P95 query SLAs across vector embedding databases."
+      },
+      graphNodes: ['OpenAPI 3.0 REST', '120ms P95 Latency', '16GB RAM Nodes', 'SOC2 Type II Audit', 'JWT Auth'],
       knowledgeGaps: {
         missingInfo: [
           'Does not specify fallbacks if the primary API rate limiting gateway goes offline.',
@@ -103,7 +118,7 @@ Core Specifications:
           'What is the maximum allowed file payload size per single REST API request?'
         ],
         improvements: [
-          'Define circuit breaker patterns for API service degradation.',
+          'Define circuit breaker patterns for graceful API service degradation.',
           'Provide benchmark graphs showing RAM consumption under 10,000 concurrent vector queries.'
         ]
       }
@@ -133,25 +148,29 @@ Core Specifications:
     }
   }, [documents, user]);
 
-  // Sync Question Count
+  // Sync Question Count to LocalStorage
   useEffect(() => {
     if (user && user.email) {
       localStorage.setItem(`clouddoc_qcount_${user.email.toLowerCase()}`, JSON.stringify(questionsCount));
     }
   }, [questionsCount, user]);
 
-  // Analytics Metrics (Calculated Dynamically)
+  // Analytics Metrics (Calculated Dynamically for Clean State)
   const totalStorageGB = 10.0;
   const storageUsedMB = documents.reduce((acc, curr) => acc + (curr.sizeMB || 0), 0);
   const storageUsedGB = (storageUsedMB / 1024).toFixed(2);
   const memoryUsedMB = documents.length === 0 ? 0 : Math.round(documents.length * 128);
 
-  // Ask Document / Gap Detector State
+  // Active Selected Document State
   const [selectedDocId, setSelectedDocId] = useState(documents[0]?.id || null);
   const selectedDoc = documents.find(d => d.id === Number(selectedDocId)) || documents[0] || {};
-  const [summaryFormat, setSummaryFormat] = useState('detailed');
-  
-  const [docQuestions, setDocQuestions] = useState([]);
+  const [summaryFormat, setSummaryFormat] = useState('detailed'); // 'brief', 'detailed', 'takeaways'
+  const [readingLevel, setReadingLevel] = useState('college'); // 'beginner', 'college', 'professional', 'expert'
+
+  // Q&A State
+  const [docQuestions, setDocQuestions] = useState([
+    { q: 'What is the primary architectural focus of this document?', a: 'The document highlights deployment standards, auto-scaling thresholds, memory limits, and vector database query SLA targets.' }
+  ]);
   const [newQuestion, setNewQuestion] = useState('');
 
   // Compare Documents State
@@ -168,7 +187,7 @@ Core Specifications:
   // Chatbot State
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [botMessages, setBotMessages] = useState([
-    { sender: 'bot', text: 'Hello! I am your CloudDoc AI assistant. Ask me to identify knowledge gaps, missing costs, or unanswered questions in your documents!' }
+    { sender: 'bot', text: 'Hello! I am your CloudDoc AI assistant. How can I help you analyze your documents today?' }
   ]);
   const [botInput, setBotInput] = useState('');
 
@@ -180,7 +199,7 @@ Core Specifications:
     setTimeout(() => setToastMessage(''), 3000);
   };
 
-  // Password Strength Calculator
+  // Real-time Password Strength Meter Calculator
   const passwordStrength = useMemo(() => {
     if (!user.password) return { text: '', color: 'bg-slate-700', score: 0 };
     let score = 0;
@@ -194,17 +213,14 @@ Core Specifications:
     return { text: 'Strong password', color: 'bg-emerald-500', score: 3 };
   }, [user.password]);
 
-  const toggleAuthMode = (mode) => {
-    setAuthMode(mode);
-    setUser({ fullName: '', email: '', password: '' });
-  };
-
+  // Static Flashcard Data
   const flashcards = [
     { question: 'What is Cloud Document Intelligence?', answer: 'It is the integration of AI models (LLMs, OCR, NLP) with cloud storage to automatically extract, summarize, search, and analyze unstructured documents.' },
     { question: 'How does Document Vectorization work?', answer: 'Text from documents is converted into numerical vector embeddings, allowing semantic search and high-speed similarity querying.' },
     { question: 'What is Retrieval-Augmented Generation (RAG)?', answer: 'RAG is a technique that retrieves relevant context from your private uploaded documents before feeding the prompt to an LLM for factual answers.' }
   ];
 
+  // Static MCQ Data
   const mcqs = [
     {
       id: 1,
@@ -220,6 +236,7 @@ Core Specifications:
     }
   ];
 
+  // REAL FILE UPLOAD HANDLER
   const handleFileUpload = (e) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
@@ -251,10 +268,17 @@ Key Points Extracted:
         keyTakeaways: [
           `Custom file "${fileName}" processed successfully into vector store.`,
           'Structured sections indexed for fast AI retrieval.',
-          'Ready for interactive Q&A, Gap Analysis, and comparison.'
+          'Ready for interactive Q&A, Adaptive Reading, and Gap Detection.'
         ],
         keywords: ['Uploaded File', 'Custom Document', 'Vector Indexed', 'AI Processed'],
         outline: ['1. File Header', '2. Executive Summary', '3. Technical Specs', '4. Annexure'],
+        adaptiveReading: {
+          beginner: `This document (${fileName}) explains key project guidelines using simple step-by-step concepts.`,
+          college: `An academic summary of ${fileName} detailing structural workflows, hardware requirements, and API endpoints.`,
+          professional: `Enterprise evaluation of ${fileName} focusing on operational scalability, security constraints, and compliance mandates.`,
+          expert: `Low-level technical breakdown of ${fileName} emphasizing vector memory footprint, payload sizes, and P95 latency SLAs.`
+        },
+        graphNodes: [fileName, 'Vector Embeddings', 'Semantic Memory', 'Cloud Security Gateway'],
         knowledgeGaps: {
           missingInfo: [
             `The document explains operational workflows in "${fileName}" but does not compare implementation costs or cloud infrastructure expenses.`,
@@ -431,9 +455,11 @@ Key Points Extracted:
     setBotInput('');
 
     setTimeout(() => {
-      let botReply = 'I am here to help you navigate CloudDoc AI! You can upload real files, run Knowledge Gap Detection, ask questions, or compare documents.';
+      let botReply = 'I am here to help you navigate CloudDoc AI! You can upload real files, run Knowledge Gap Detection, test Adaptive Reading Mode, or compare documents.';
       if (userMsg.toLowerCase().includes('gap') || userMsg.toLowerCase().includes('missing')) {
         botReply = 'Our Knowledge Gap Detector identifies missing information (costs, security risks), unanswered questions, and document improvements!';
+      } else if (userMsg.toLowerCase().includes('adaptive') || userMsg.toLowerCase().includes('reading')) {
+        botReply = 'Adaptive Reading Mode lets you view document breakdowns tailored across 4 complexity levels: Beginner, College, Professional, and Expert!';
       } else if (userMsg.toLowerCase().includes('upload')) {
         botReply = 'To upload documents, go to "My Documents" or click "Upload New Document" on the Dashboard!';
       } else if (userMsg.toLowerCase().includes('compare')) {
@@ -443,6 +469,9 @@ Key Points Extracted:
     }, 600);
   };
 
+  // ----------------------------------------------------
+  // AUTHENTICATION SCREEN
+  // ----------------------------------------------------
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4">
@@ -529,9 +558,9 @@ Key Points Extracted:
 
           <div className="mt-6 text-center text-xs text-slate-400">
             {authMode === 'login' ? (
-              <span>Don't have an account? <button onClick={() => toggleAuthMode('register')} className="text-indigo-400 font-medium hover:underline">Sign Up</button></span>
+              <span>Don't have an account? <button onClick={() => setAuthMode('register')} className="text-indigo-400 font-medium hover:underline">Sign Up</button></span>
             ) : (
-              <span>Already have an account? <button onClick={() => toggleAuthMode('login')} className="text-indigo-400 font-medium hover:underline">Log In</button></span>
+              <span>Already have an account? <button onClick={() => setAuthMode('login')} className="text-indigo-400 font-medium hover:underline">Log In</button></span>
             )}
           </div>
         </div>
@@ -539,6 +568,9 @@ Key Points Extracted:
     );
   }
 
+  // ----------------------------------------------------
+  // MAIN DASHBOARD APPLICATION
+  // ----------------------------------------------------
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex relative overflow-hidden font-sans">
       
@@ -576,9 +608,11 @@ Key Points Extracted:
             {[
               { id: 'dashboard', label: 'Dashboard', icon: PieChart },
               { id: 'documents', label: 'My Documents', icon: FileText },
-              { id: 'gaps', label: 'Knowledge Gap Detector', icon: SearchCode },
+              { id: 'adaptive', label: 'Adaptive Reading', icon: Sliders },
+              { id: 'graph', label: 'Knowledge Graph', icon: Network },
+              { id: 'gaps', label: 'Gap Detector', icon: SearchCode },
               { id: 'ask', label: 'Ask Document', icon: MessageSquare },
-              { id: 'compare', label: 'Compare Documents', icon: Layers },
+              { id: 'compare', label: 'Compare Docs', icon: Layers },
               { id: 'study', label: 'Study Mode', icon: BookOpen },
               { id: 'profile', label: 'User Profile', icon: User }
             ].map(item => {
@@ -704,12 +738,21 @@ Key Points Extracted:
             {/* Quick Actions */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <button 
-                onClick={() => fileInputRef.current.click()} 
+                onClick={() => setActiveTab('adaptive')} 
                 className="bg-slate-900 hover:bg-slate-800/80 border border-slate-800 p-5 rounded-xl text-left transition-all group"
               >
-                <UploadCloud className="w-6 h-6 text-indigo-400 mb-2 group-hover:scale-110 transition-transform" />
-                <h4 className="font-semibold text-sm">Upload New Document</h4>
-                <p className="text-xs text-slate-400 mt-1">Select files from your local drive to index into cloud memory.</p>
+                <Sliders className="w-6 h-6 text-indigo-400 mb-2 group-hover:scale-110 transition-transform" />
+                <h4 className="font-semibold text-sm">Adaptive Reading Mode</h4>
+                <p className="text-xs text-slate-400 mt-1">Explain text across 4 levels: Beginner, College, Pro, or Expert.</p>
+              </button>
+
+              <button 
+                onClick={() => setActiveTab('graph')} 
+                className="bg-slate-900 hover:bg-slate-800/80 border border-slate-800 p-5 rounded-xl text-left transition-all group"
+              >
+                <Network className="w-6 h-6 text-emerald-400 mb-2 group-hover:scale-110 transition-transform" />
+                <h4 className="font-semibold text-sm">Knowledge Graph & Mind Map</h4>
+                <p className="text-xs text-slate-400 mt-1">Visualize document topics as interactive graph nodes.</p>
               </button>
 
               <button 
@@ -718,16 +761,7 @@ Key Points Extracted:
               >
                 <SearchCode className="w-6 h-6 text-red-400 mb-2 group-hover:scale-110 transition-transform" />
                 <h4 className="font-semibold text-sm">Knowledge Gap Detector</h4>
-                <p className="text-xs text-slate-400 mt-1">Identify missing info, cost/security risks, and unanswered questions.</p>
-              </button>
-
-              <button 
-                onClick={() => setActiveTab('compare')} 
-                className="bg-slate-900 hover:bg-slate-800/80 border border-slate-800 p-5 rounded-xl text-left transition-all group"
-              >
-                <Layers className="w-6 h-6 text-amber-400 mb-2 group-hover:scale-110 transition-transform" />
-                <h4 className="font-semibold text-sm">Compare 2 Documents</h4>
-                <p className="text-xs text-slate-400 mt-1">Check similarity percentage and key differences side-by-side.</p>
+                <p className="text-xs text-slate-400 mt-1">Identify missing info, cost/security risks, and open questions.</p>
               </button>
             </div>
           </div>
@@ -831,6 +865,122 @@ Key Points Extracted:
           </div>
         )}
 
+        {/* ADAPTIVE READING MODE VIEW */}
+        {activeTab === 'adaptive' && (
+          <div className="space-y-6 max-w-6xl mx-auto">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  <Sliders className="w-6 h-6 text-indigo-400" />
+                  <span>Adaptive Reading Mode</span>
+                </h2>
+                <p className="text-slate-400 text-sm">Explains the document tailored across 4 different complexity levels while preserving formulas and citations.</p>
+              </div>
+
+              {documents.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-slate-400 font-medium">Select File:</label>
+                  <select 
+                    value={selectedDocId || ''} 
+                    onChange={e => setSelectedDocId(Number(e.target.value))}
+                    className="bg-slate-900 border border-slate-800 text-xs text-indigo-300 font-medium px-3 py-2 rounded-lg focus:outline-none"
+                  >
+                    {documents.map(d => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {documents.length === 0 ? (
+              <div className="p-12 text-center bg-slate-900 border border-slate-800 rounded-xl">
+                <Sliders className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+                <p className="text-sm text-slate-400">Please upload a document to enable Adaptive Reading Mode.</p>
+              </div>
+            ) : (
+              <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { id: 'beginner', label: 'Beginner', icon: BookOpen, desc: 'Simple analogies & zero jargon' },
+                    { id: 'college', label: 'College Student', icon: GraduationCap, desc: 'Academic breakdown & definitions' },
+                    { id: 'professional', label: 'Professional', icon: Briefcase, desc: 'Operational risks & SLA' },
+                    { id: 'expert', label: 'Technical Expert', icon: Award, desc: 'In-depth code metrics & P95 latency' }
+                  ].map(lvl => {
+                    const Icon = lvl.icon;
+                    return (
+                      <button
+                        key={lvl.id}
+                        onClick={() => setReadingLevel(lvl.id)}
+                        className={`p-4 rounded-xl border text-left transition-all ${
+                          readingLevel === lvl.id 
+                            ? 'bg-indigo-600/20 border-indigo-500 text-indigo-300 shadow-lg' 
+                            : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-800'
+                        }`}
+                      >
+                        <Icon className="w-5 h-5 mb-2 text-indigo-400" />
+                        <h4 className="font-bold text-xs text-slate-200">{lvl.label}</h4>
+                        <p className="text-[10px] text-slate-400 mt-1">{lvl.desc}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="p-6 bg-slate-950 rounded-xl border border-slate-800/80 space-y-3">
+                  <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                    <span className="text-xs font-bold text-indigo-400 uppercase tracking-wide">
+                      Active Complexity Level: {readingLevel.toUpperCase()}
+                    </span>
+                    <span className="text-[10px] text-slate-500">Document: {selectedDoc.name}</span>
+                  </div>
+                  <p className="text-xs text-slate-200 leading-relaxed font-sans">
+                    {selectedDoc.adaptiveReading?.[readingLevel] || selectedDoc.detailedSummary}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* KNOWLEDGE GRAPH VIEW */}
+        {activeTab === 'graph' && (
+          <div className="space-y-6 max-w-6xl mx-auto">
+            <div>
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                <Network className="w-6 h-6 text-emerald-400" />
+                <span>Interactive Knowledge Graph</span>
+              </h2>
+              <p className="text-slate-400 text-sm">Visualizes document topics as interconnected semantic node branches in real time.</p>
+            </div>
+
+            {documents.length === 0 ? (
+              <div className="p-12 text-center bg-slate-900 border border-slate-800 rounded-xl">
+                <Network className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+                <p className="text-sm text-slate-400">Upload a document to build interactive knowledge graphs.</p>
+              </div>
+            ) : (
+              <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center space-y-6">
+                <h3 className="text-sm font-bold text-slate-200">Semantic Node Relations for "{selectedDoc.name}"</h3>
+                
+                <div className="p-12 bg-slate-950 border border-slate-800 rounded-2xl flex flex-wrap items-center justify-center gap-6 relative overflow-hidden">
+                  <div className="p-4 bg-indigo-600 text-white rounded-xl font-bold text-xs shadow-2xl z-10 border border-indigo-400">
+                    {selectedDoc.name}
+                  </div>
+
+                  {selectedDoc.graphNodes?.map((node, idx) => (
+                    <div key={idx} className="flex items-center gap-3 animate-pulse">
+                      <div className="w-8 h-0.5 bg-indigo-500/50"></div>
+                      <div className="p-3 bg-slate-900 border border-indigo-500/30 text-indigo-300 rounded-lg text-xs font-semibold hover:border-indigo-400 cursor-pointer transition-all">
+                        {node}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* KNOWLEDGE GAP DETECTOR VIEW */}
         {activeTab === 'gaps' && (
           <div className="space-y-6 max-w-6xl mx-auto">
@@ -866,7 +1016,6 @@ Key Points Extracted:
               </div>
             ) : (
               <div className="space-y-6">
-                {/* File Overview Banner */}
                 <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl flex justify-between items-center">
                   <div>
                     <p className="text-xs text-slate-400 uppercase font-semibold">Active Document</p>
@@ -878,7 +1027,6 @@ Key Points Extracted:
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* Category 1: Missing Critical Information */}
                   <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-3">
                     <div className="flex items-center gap-2 text-red-400">
                       <AlertCircle className="w-5 h-5" />
@@ -894,7 +1042,6 @@ Key Points Extracted:
                     </ul>
                   </div>
 
-                  {/* Category 2: Unanswered Questions */}
                   <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-3">
                     <div className="flex items-center gap-2 text-amber-400">
                       <HelpCircle className="w-5 h-5" />
@@ -910,7 +1057,6 @@ Key Points Extracted:
                     </ul>
                   </div>
 
-                  {/* Category 3: Recommended Improvements */}
                   <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-3">
                     <div className="flex items-center gap-2 text-emerald-400">
                       <Sparkles className="w-5 h-5" />
@@ -931,7 +1077,7 @@ Key Points Extracted:
           </div>
         )}
 
-        {/* ASK DOCUMENT / AI ANALYSIS VIEW */}
+        {/* ASK DOCUMENT VIEW */}
         {activeTab === 'ask' && (
           <div className="space-y-6 max-w-6xl mx-auto">
             <div className="flex justify-between items-center">
