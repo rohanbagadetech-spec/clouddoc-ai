@@ -10,9 +10,9 @@ import {
   Network, Sliders, GraduationCap, Briefcase, Award, Bot, Send
 } from 'lucide-react';
 
-// Initialize Groq client with live API key
+// Initialize Groq client with live API key / environment variable
 const groq = new Groq({ 
-  apiKey: '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', 
+  apiKey: process.env.REACT_APP_GROQ_API_KEY || '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', 
   dangerouslyAllowBrowser: true 
 });
 
@@ -80,6 +80,20 @@ Key Architectural Pillars:
           'Include a side-by-side cost estimation table for bandwidth and storage scaling.',
           'Add a threat modeling matrix covering external DDoS mitigation and firewall rules.'
         ]
+      },
+      studyMode: {
+        flashcards: [
+          { question: 'What is the primary failover objective in Cloud_Architecture_Design_v2.pdf?', answer: 'Sub-5-minute RTO/RPO near zero with active-passive multi-region replication.' },
+          { question: 'What CPU threshold triggers auto-scaling?', answer: 'Auto-scaling policy triggers when server CPU utilization exceeds 70%.' }
+        ],
+        mcqs: [
+          {
+            id: 1,
+            question: 'Which load balancer component is specified for routing?',
+            options: ['Layer 7 Application Load Balancer', 'DNS Round Robin', 'Static Reverse Proxy', 'Direct Network Switch'],
+            correct: 0
+          }
+        ]
       }
     },
     { 
@@ -128,6 +142,20 @@ Core Specifications:
           'Define circuit breaker patterns for graceful API service degradation.',
           'Provide benchmark graphs showing RAM consumption under 10,000 concurrent vector queries.'
         ]
+      },
+      studyMode: {
+        flashcards: [
+          { question: 'What is the P95 query latency cap specified?', answer: '120ms for vector embedding queries.' },
+          { question: 'What minimum node memory is required?', answer: 'Minimum 16GB RAM for worker nodes.' }
+        ],
+        mcqs: [
+          {
+            id: 1,
+            question: 'What is the per-tenant API rate limit restriction?',
+            options: ['100 requests per minute', '500 requests per minute', 'Unlimited', '10 requests per second'],
+            correct: 0
+          }
+        ]
       }
     }
   ];
@@ -162,7 +190,7 @@ Core Specifications:
     }
   }, [questionsCount, user]);
 
-  // Analytics Metrics (Calculated Dynamically for Clean State)
+  // Analytics Metrics
   const totalStorageGB = 10.0;
   const storageUsedMB = documents.reduce((acc, curr) => acc + (curr.sizeMB || 0), 0);
   const storageUsedGB = (storageUsedMB / 1024).toFixed(2);
@@ -220,29 +248,6 @@ Core Specifications:
     return { text: 'Strong password', color: 'bg-emerald-500', score: 3 };
   }, [user.password]);
 
-  // Static Flashcard Data
-  const flashcards = [
-    { question: 'What is Cloud Document Intelligence?', answer: 'It is the integration of AI models (LLMs, OCR, NLP) with cloud storage to automatically extract, summarize, search, and analyze unstructured documents.' },
-    { question: 'How does Document Vectorization work?', answer: 'Text from documents is converted into numerical vector embeddings, allowing semantic search and high-speed similarity querying.' },
-    { question: 'What is Retrieval-Augmented Generation (RAG)?', answer: 'RAG is a technique that retrieves relevant context from your private uploaded documents before feeding the prompt to an LLM for factual answers.' }
-  ];
-
-  // Static MCQ Data
-  const mcqs = [
-    {
-      id: 1,
-      question: 'Which technology enables rapid context retrieval from uploaded PDFs?',
-      options: ['RAG (Retrieval-Augmented Generation)', 'Basic SQL Indexing', 'Linear Regression', 'FTP Protocols'],
-      correct: 0
-    },
-    {
-      id: 2,
-      question: 'What is the primary benefit of CloudDoc AI Knowledge Gap Detector?',
-      options: ['Formatting document fonts', 'Identifying missing info, costs, security risks, and unanswered questions', 'Deleting duplicate files', 'Converting PDFs to audio'],
-      correct: 1
-    }
-  ];
-
   // REAL FILE UPLOAD HANDLER POWERED BY GROQ (GPT OSS 120B)
   const handleFileUpload = async (e) => {
     const files = Array.from(e.target.files);
@@ -276,6 +281,26 @@ Core Specifications:
     "missingInfo": ["Specific missing item 1 for this document topic", "Specific missing item 2"],
     "unansweredQuestions": ["Specific unresolved question 1", "Specific unresolved question 2"],
     "improvements": ["Actionable recommendation 1", "Actionable recommendation 2"]
+  },
+  "studyMode": {
+    "flashcards": [
+      {"question": "What is the core focus of ${fileName}?", "answer": "Detailed answer explaining the main purpose of ${fileName}."},
+      {"question": "What primary requirement is specified in ${fileName}?", "answer": "Explanation of system specs and operational rules."}
+    ],
+    "mcqs": [
+      {
+        "id": 1,
+        "question": "Which main feature or component is highlighted in ${fileName}?",
+        "options": ["Primary Feature / Module", "Database Schema", "Unrelated Framework", "Legacy Protocol"],
+        "correct": 0
+      },
+      {
+        "id": 2,
+        "question": "What key metric or goal is emphasized in the document?",
+        "options": ["High performance / Quality target", "Low bandwidth quota", "Manual review process", "Static caching"],
+        "correct": 0
+      }
+    ]
   }
 }`
             },
@@ -305,18 +330,32 @@ Core Specifications:
         complexity: 'Intermediate',
         briefSummary: aiAnalysis?.briefSummary || `Executive summary for ${fileName}: Outlines core specifications and project scope.`,
         detailedSummary: aiAnalysis?.detailedSummary || `Detailed analysis for ${fileName}: Covers system requirements, workflows, and operational rules.`,
-        keyTakeaways: aiAnalysis?.keyTakeaways || [`Custom file "${fileName}" processed successfully into vector store.`, 'Structured sections indexed for fast AI retrieval.', 'Ready for interactive Q&A, Adaptive Reading, and Gap Detection.'],
+        keyTakeaways: aiAnalysis?.keyTakeaways || [`Custom file "${fileName}" processed successfully into vector store.`, 'Structured sections indexed for fast AI retrieval.'],
         adaptiveReading: aiAnalysis?.adaptiveReading || {
           beginner: `This document (${fileName}) explains key project guidelines using simple step-by-step concepts.`,
           college: `An academic summary of ${fileName} detailing structural workflows and requirements.`,
           professional: `Enterprise evaluation of ${fileName} focusing on operational scalability and SLA constraints.`,
-          expert: `Low-level technical breakdown of ${fileName} emphasizing system architecture and latency targets.`
+          expert: `Low-level technical breakdown of ${fileName} emphasizing system architecture.`
         },
         graphNodes: aiAnalysis?.graphNodes || [fileName, 'System Architecture', 'Core Features', 'Tech Stack'],
         knowledgeGaps: aiAnalysis?.knowledgeGaps || {
-          missingInfo: [`The document explains workflows in "${fileName}" but omits cloud cost estimates.`, 'Lacks explicit discussion regarding disaster mitigation schedules.'],
-          unansweredQuestions: [`What are the concrete scalability limits when requests exceed thresholds?`, 'How does the architecture handle corrupted file payloads?'],
-          improvements: ['Add a financial analysis section addressing cost vs performance trade-offs.', 'Include a comparative benchmark matrix against industry standards.']
+          missingInfo: [`The document explains workflows in "${fileName}" but omits cloud cost estimates.`],
+          unansweredQuestions: [`What are the concrete scalability limits when requests exceed thresholds?`],
+          improvements: ['Add a financial analysis section addressing cost vs performance trade-offs.']
+        },
+        studyMode: aiAnalysis?.studyMode || {
+          flashcards: [
+            { question: `What is the core focus of ${fileName}?`, answer: `Outlines system specifications and core architecture for ${fileName}.` },
+            { question: `What requirements are specified in ${fileName}?`, answer: `Standard high-availability configurations and vector processing pipelines.` }
+          ],
+          mcqs: [
+            {
+              id: 1,
+              question: `Which architectural component is primary in ${fileName}?`,
+              options: ['Core System Architecture', 'Static File Indexing', 'Linear Scripting', 'Legacy Protocols'],
+              correct: 0
+            }
+          ]
         }
       };
 
@@ -1298,9 +1337,31 @@ Core Specifications:
         {/* STUDY MODE VIEW */}
         {activeTab === 'study' && (
           <div className="space-y-6 max-w-6xl mx-auto">
-            <div>
-              <h2 className="text-2xl font-bold">Study Mode & Revision</h2>
-              <p className="text-slate-400 text-sm">Interactive flashcards and multiple-choice questions automatically generated from docs.</p>
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold">Study Mode & Revision</h2>
+                <p className="text-slate-400 text-sm">Interactive flashcards and multiple-choice questions dynamically generated by GPT OSS 120B.</p>
+              </div>
+
+              {documents.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-slate-400 font-medium">Select File:</label>
+                  <select 
+                    value={selectedDocId || ''} 
+                    onChange={e => {
+                      setSelectedDocId(Number(e.target.value));
+                      setFlashcardIndex(0);
+                      setShowAnswer(false);
+                      setUserAnswers({});
+                    }}
+                    className="bg-slate-900 border border-slate-800 text-xs text-indigo-300 font-medium px-3 py-2 rounded-lg focus:outline-none"
+                  >
+                    {documents.map(d => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-2">
@@ -1324,58 +1385,72 @@ Core Specifications:
 
             {activeStudyTab === 'flashcards' && (
               <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 max-w-xl mx-auto text-center space-y-6">
-                <p className="text-[10px] text-slate-500 uppercase font-semibold">Card {flashcardIndex + 1} of {flashcards.length}</p>
-                <div 
-                  onClick={() => setShowAnswer(!showAnswer)}
-                  className="p-8 bg-slate-950 border border-indigo-500/30 rounded-xl cursor-pointer min-h-[160px] flex items-center justify-center text-sm font-semibold text-slate-200 hover:border-indigo-400 transition-all"
-                >
-                  {showAnswer ? flashcards[flashcardIndex].answer : flashcards[flashcardIndex].question}
-                </div>
-                <p className="text-[11px] text-slate-500">Click the card to flip between Question and Answer</p>
+                {(!selectedDoc.studyMode?.flashcards || selectedDoc.studyMode.flashcards.length === 0) ? (
+                  <p className="text-xs text-slate-400 py-8">No flashcards generated for this file yet. Re-upload a document to generate AI study materials.</p>
+                ) : (
+                  <>
+                    <p className="text-[10px] text-slate-500 uppercase font-semibold">
+                      Card {flashcardIndex + 1} of {selectedDoc.studyMode.flashcards.length}
+                    </p>
+                    <div 
+                      onClick={() => setShowAnswer(!showAnswer)}
+                      className="p-8 bg-slate-950 border border-indigo-500/30 rounded-xl cursor-pointer min-h-[160px] flex items-center justify-center text-sm font-semibold text-slate-200 hover:border-indigo-400 transition-all"
+                    >
+                      {showAnswer 
+                        ? selectedDoc.studyMode.flashcards[flashcardIndex]?.answer 
+                        : selectedDoc.studyMode.flashcards[flashcardIndex]?.question}
+                    </div>
+                    <p className="text-[11px] text-slate-500">Click the card to flip between Question and Answer</p>
 
-                <div className="flex justify-between items-center pt-2">
-                  <button 
-                    disabled={flashcardIndex === 0}
-                    onClick={() => { setFlashcardIndex(prev => prev - 1); setShowAnswer(false); }}
-                    className="text-xs bg-slate-800 disabled:opacity-50 px-4 py-2 rounded-lg"
-                  >
-                    Previous
-                  </button>
-                  <button 
-                    disabled={flashcardIndex === flashcards.length - 1}
-                    onClick={() => { setFlashcardIndex(prev => prev + 1); setShowAnswer(false); }}
-                    className="text-xs bg-indigo-600 px-4 py-2 rounded-lg"
-                  >
-                    Next Card
-                  </button>
-                </div>
+                    <div className="flex justify-between items-center pt-2">
+                      <button 
+                        disabled={flashcardIndex === 0}
+                        onClick={() => { setFlashcardIndex(prev => prev - 1); setShowAnswer(false); }}
+                        className="text-xs bg-slate-800 disabled:opacity-50 px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors"
+                      >
+                        Previous
+                      </button>
+                      <button 
+                        disabled={flashcardIndex >= selectedDoc.studyMode.flashcards.length - 1}
+                        onClick={() => { setFlashcardIndex(prev => prev + 1); setShowAnswer(false); }}
+                        className="text-xs bg-indigo-600 disabled:opacity-50 px-4 py-2 rounded-lg hover:bg-indigo-500 transition-colors"
+                      >
+                        Next Card
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
             {activeStudyTab === 'mcqs' && (
               <div className="space-y-4 max-w-2xl mx-auto">
-                {mcqs.map((q) => (
-                  <div key={q.id} className="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-3">
-                    <p className="text-xs font-bold text-slate-200">{q.id}. {q.question}</p>
-                    <div className="space-y-2">
-                      {q.options.map((opt, oIdx) => (
-                        <button
-                          key={oIdx}
-                          onClick={() => setUserAnswers({ ...userAnswers, [q.id]: oIdx })}
-                          className={`w-full text-left p-3 rounded-lg text-xs font-medium border transition-all ${
-                            userAnswers[q.id] === oIdx
-                              ? oIdx === q.correct
-                                ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
-                                : 'bg-red-500/20 border-red-500/50 text-red-300'
-                              : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'
-                          }`}
-                        >
-                          {opt}
-                        </button>
-                      ))}
+                {(!selectedDoc.studyMode?.mcqs || selectedDoc.studyMode.mcqs.length === 0) ? (
+                  <p className="text-xs text-slate-400 text-center py-8">No quiz questions available for this file. Re-upload a document to generate AI quiz questions.</p>
+                ) : (
+                  selectedDoc.studyMode.mcqs.map((q) => (
+                    <div key={q.id} className="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-3">
+                      <p className="text-xs font-bold text-slate-200">{q.id}. {q.question}</p>
+                      <div className="space-y-2">
+                        {q.options.map((opt, oIdx) => (
+                          <button
+                            key={oIdx}
+                            onClick={() => setUserAnswers({ ...userAnswers, [q.id]: oIdx })}
+                            className={`w-full text-left p-3 rounded-lg text-xs font-medium border transition-all ${
+                              userAnswers[q.id] === oIdx
+                                ? oIdx === q.correct
+                                  ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
+                                  : 'bg-red-500/20 border-red-500/50 text-red-300'
+                                : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800'
+                            }`}
+                          >
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             )}
           </div>
