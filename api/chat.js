@@ -9,7 +9,7 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: 'Use POST' });
   }
   const key = process.env.GROQ_API_KEY;
-  if (!key) return res.status(500).json({ error: 'GROQ_API_KEY is not set on the server' });
+  if (!key) return res.status(500).json({ error: 'AI is not configured yet: add GROQ_API_KEY in Vercel > Settings > Environment Variables, then redeploy' });
 
   const { messages, json } = req.body || {};
   if (!Array.isArray(messages) || !messages.length) {
@@ -24,6 +24,7 @@ module.exports = async function handler(req, res) {
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: MODEL,
+        temperature: 0.2,
         messages: messages.map((m) => ({ role: m.role, content: String(m.content) })),
         ...(json ? { response_format: { type: 'json_object' } } : {}),
       }),
