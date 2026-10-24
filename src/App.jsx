@@ -209,6 +209,9 @@ Core Specifications:
   const [docA, setDocA] = useState(documents[0]?.id || '');
   const [docB, setDocB] = useState(documents[1]?.id || '');
   const [compareResult, setCompareResult] = useState(null);
+  const hasDoc = (id) => documents.some(d => d.id === Number(id));
+  const effA = hasDoc(docA) ? Number(docA) : documents[0]?.id;
+  const effB = hasDoc(docB) && Number(docB) !== effA ? Number(docB) : documents.find(d => d.id !== effA)?.id;
 
   // Flashcards & MCQs State
   const [activeStudyTab, setActiveStudyTab] = useState('flashcards');
@@ -509,14 +512,15 @@ Core Specifications:
   };
 
   const handleCompare = async () => {
-    const itemA = documents.find(d => d.id === Number(docA));
-    const itemB = documents.find(d => d.id === Number(docB));
+    const itemA = documents.find(d => d.id === effA);
+    const itemB = documents.find(d => d.id === effB);
 
-    if (!itemA || !itemB || docA === docB) {
+    if (!itemA || !itemB || effA === effB) {
       triggerToast('Please select two DIFFERENT documents to compare.');
       return;
     }
-    triggerToast('Comparing documents with GPT OSS 120B...');
+    setCompareResult(null);
+    triggerToast(`Comparing ${itemA.name} and ${itemB.name}...`);
     const textOf = (d) => excerpt(d.content || d.detailedSummary || d.briefSummary || '', 9000);
     try {
       const result = await chat([
@@ -551,13 +555,13 @@ Core Specifications:
         ? `The user is currently viewing "${selectedDoc.name}". Its text:\n${excerpt(selectedDoc.content || selectedDoc.detailedSummary || '', 8000)}`
         : 'The user has no document selected.';
       const botReply = await chat([
-        { role: 'system', content: `You are the CloudDoc AI Assistant powered by GPT OSS 120B. Give concise, helpful answers about the user's documents and CloudDoc features (upload, adaptive reading, knowledge graph, gap detector, Q&A, compare, study mode, file converter for PDF/Word/PowerPoint/Excel/images). ${context}` },
-        ...botMessages.slice(-6).map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', content: m.text })),
+        { role: 'system', content: `You are the CloudDoc AI Assistant powered by GPT OSS 120B, a helpful general assistant. Answer any question the user asks directly and accurately, like a normal AI chatbot. Only when the question is about their document, use the document text below and answer strictly from it, quoting exact figures. You can also explain CloudDoc features (upload, adaptive reading, knowledge graph, gap detector, Ask Document, Compare Docs, Study Mode, File Converter for PDF/Word/PowerPoint/Excel/images). Keep answers clear and concise.\n\n${context}` },
+        ...botMessages.slice(1).slice(-6).map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', content: m.text })),
         { role: 'user', content: userMsg }
       ]);
       setBotMessages(prev => [...prev, { sender: 'bot', text: botReply }]);
     } catch (err) {
-      setBotMessages(prev => [...prev, { sender: 'bot', text: 'I am here to help you navigate CloudDoc AI! You can upload real files, run Knowledge Gap Detection, test Adaptive Reading Mode, or compare documents.' }]);
+      setBotMessages(prev => [...prev, { sender: 'bot', text: `Sorry, I couldn't reach the AI (${err.message}). Please try again.` }]);
     }
   };
 
@@ -1305,7 +1309,7 @@ Core Specifications:
                   <div>
                     <label className="block text-xs text-slate-400 mb-1">Select Document 1:</label>
                     <select 
-                      value={docA} 
+                      value={effA ?? ''} 
                       onChange={e => setDocA(Number(e.target.value))}
                       className="w-full bg-slate-950 border border-slate-800 text-xs text-slate-200 p-2.5 rounded-lg"
                     >
@@ -1316,7 +1320,7 @@ Core Specifications:
                   <div>
                     <label className="block text-xs text-slate-400 mb-1">Select Document 2:</label>
                     <select 
-                      value={docB} 
+                      value={effB ?? ''} 
                       onChange={e => setDocB(Number(e.target.value))}
                       className="w-full bg-slate-950 border border-slate-800 text-xs text-slate-200 p-2.5 rounded-lg"
                     >
