@@ -1,20 +1,17 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import Groq from 'groq-sdk';
 import { 
   FileText, UploadCloud, PieChart, MessageSquare, Layers, 
-  BookOpen, HelpCircle, User, LogOut, Search, Plus, 
+  BookOpen, HelpCircle, User, LogOut, Plus, 
   CheckCircle, ArrowRight, Shield, Zap, Sparkles, AlertCircle,
   TrendingUp, HardDrive, Cpu, RefreshCw, Eye, Download, Trash2,
   ChevronRight, Check, FileCheck, ArrowUpRight, X, CheckCircle2,
   Copy, Clock, Tag, ListOrdered, FileSpreadsheet, Share2, SearchCode,
   Network, Sliders, GraduationCap, Briefcase, Award, Bot, Send
 } from 'lucide-react';
+import ConvertTab from './ConvertTab';
+import { chat, excerpt } from './ai';
+import { extractText } from './converters';
 
-// Initialize Groq client with live API key / environment variable
-const groq = new Groq({ 
-  apiKey: process.env.REACT_APP_GROQ_API_KEY || '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', 
-  dangerouslyAllowBrowser: true 
-});
 
 export default function App() {
   // Authentication State
@@ -253,19 +250,28 @@ Core Specifications:
     const files = Array.from(e.target.files);
     if (!files.length) return;
 
-    triggerToast('Analyzing document with Groq GPT OSS 120B...');
+    triggerToast('Reading and analyzing your document...');
+    let aiAnalysisFailed = false;
 
     for (const file of files) {
       const fileSizeInMB = parseFloat((file.size / (1024 * 1024)).toFixed(2));
       const fileName = file.name;
 
+      let content = '';
+      try {
+        content = await extractText(file);
+      } catch (err) {
+        console.error('Text extraction failed:', err);
+      }
+      const words = content ? content.split(/\s+/).filter(Boolean).length : 0;
+      const avgWordLen = words ? content.replace(/\s+/g, '').length / words : 0;
+
       let aiAnalysis = null;
       try {
-        const response = await groq.chat.completions.create({
-          messages: [
+        aiAnalysis = await chat([
             {
               role: 'system',
-              content: `You are an expert AI document auditor. Analyze the provided document title and subject matter. Return ONLY a valid JSON object formatted strictly as:
+              content: `You are an expert AI document auditor. Analyze the document text provided by the user (fall back to the title only if no text is given). Every summary, takeaway, flashcard and MCQ must come from the actual content, with real names, numbers and facts from it. Generate 5 flashcards and 5 MCQs, and vary which option index is correct. Return ONLY a valid JSON object formatted strictly as:
 {
   "briefSummary": "Concise 2-sentence summary tailored to this specific file topic.",
   "detailedSummary": "Structured overview covering the document core goals, specs, and components.",
@@ -306,16 +312,12 @@ Core Specifications:
             },
             {
               role: 'user',
-              content: `Uploaded Document Title: ${fileName}`
+              content: `Document title: ${fileName}\n\nDocument text:\n${excerpt(content) || '(no extractable text)'}`
             }
-          ],
-          model: 'openai/gpt-oss-120b',
-          response_format: { type: "json_object" }
-        });
-
-        aiAnalysis = JSON.parse(response.choices[0].message.content);
+          ], { json: true });
       } catch (err) {
         console.error("Groq GPT OSS 120B Error:", err);
+        aiAnalysisFailed = true;
       }
 
       const newDoc = {
@@ -323,11 +325,12 @@ Core Specifications:
         name: fileName,
         sizeMB: fileSizeInMB > 0 ? fileSizeInMB : 0.6,
         date: new Date().toISOString().split('T')[0],
-        tag: fileName.endsWith('.pdf') ? 'PDF File' : fileName.endsWith('.pptx') ? 'Presentation' : 'Document',
+        tag: /\.pdf$/i.test(fileName) ? 'PDF File' : /\.pptx$/i.test(fileName) ? 'Presentation' : /\.(xlsx|xls|csv)$/i.test(fileName) ? 'Spreadsheet' : 'Document',
         status: 'Indexed',
-        readTime: '5 min read',
-        wordCount: 1950,
-        complexity: 'Intermediate',
+        readTime: `${Math.max(1, Math.round(words / 200))} min read`,
+        wordCount: words,
+        complexity: avgWordLen > 6 ? 'Advanced' : avgWordLen > 5 ? 'Intermediate' : 'Beginner',
+        content: content.slice(0, 30000),
         briefSummary: aiAnalysis?.briefSummary || `Executive summary for ${fileName}: Outlines core specifications and project scope.`,
         detailedSummary: aiAnalysis?.detailedSummary || `Detailed analysis for ${fileName}: Covers system requirements, workflows, and operational rules.`,
         keyTakeaways: aiAnalysis?.keyTakeaways || [`Custom file "${fileName}" processed successfully into vector store.`, 'Structured sections indexed for fast AI retrieval.'],
@@ -363,7 +366,7 @@ Core Specifications:
       setSelectedDocId(newDoc.id);
     }
 
-    triggerToast('GPT OSS 120B Analysis Complete!');
+    triggerToast(aiAnalysisFailed ? 'Saved, but AI analysis failed. Check the server key.' : 'GPT OSS 120B Analysis Complete!');
   };
 
   const handleDeleteDoc = (id) => {
@@ -478,39 +481,62 @@ Core Specifications:
     triggerToast('Successfully logged out.');
   };
 
-  const handleAskQuestion = (e) => {
+  const [isAsking, setIsAsking] = useState(false);
+  const handleAskQuestion = async (e) => {
     e.preventDefault();
-    if (!newQuestion.trim()) return;
-    const answer = selectedDoc.name 
-      ? `Based on context from "${selectedDoc.name}", the document specifies that "${newQuestion.slice(0, 35)}..." complies with operational security policies and cloud standards.`
-      : `Based on your uploaded cloud docs, "${newQuestion.slice(0, 35)}..." matches the system vector indexes.`;
-    setDocQuestions([...docQuestions, { q: newQuestion, a: answer }]);
-    setQuestionsCount(prev => prev + 1);
+    const question = newQuestion.trim();
+    if (!question || isAsking) return;
     setNewQuestion('');
+    setIsAsking(true);
+    let answer;
+    try {
+      answer = await chat([
+        {
+          role: 'system',
+          content: 'You answer questions about one document using only its text. Quote exact figures and names when relevant. If the answer is not in the document, say so plainly. Keep answers under 150 words, no markdown tables.'
+        },
+        {
+          role: 'user',
+          content: `Document: ${selectedDoc.name}\n\nText:\n${excerpt(selectedDoc.content || selectedDoc.detailedSummary || '')}\n\nQuestion: ${question}`
+        }
+      ]);
+    } catch (err) {
+      answer = `Sorry, the AI couldn't answer right now (${err.message}).`;
+    }
+    setDocQuestions(prev => [...prev, { q: question, a: answer }]);
+    setQuestionsCount(prev => prev + 1);
+    setIsAsking(false);
   };
 
-  const handleCompare = () => {
+  const handleCompare = async () => {
     const itemA = documents.find(d => d.id === Number(docA));
     const itemB = documents.find(d => d.id === Number(docB));
-    
-    if (docA === docB) {
+
+    if (!itemA || !itemB || docA === docB) {
       triggerToast('Please select two DIFFERENT documents to compare.');
       return;
     }
-
-    setCompareResult({
-      similarity: 82,
-      commonPoints: [
-        `Both ${itemA?.name || 'Doc A'} and ${itemB?.name || 'Doc B'} share identical security policies and cloud hosting requirements.`,
-        'Shared technical stack using React frontends, Node.js microservices, and Vector Databases.',
-        'Matching data privacy compliance standards (SOC2 & GDPR framework).'
-      ],
-      differences: [
-        `${itemA?.name || 'Doc A'} focuses heavily on structural system design and frontend routing.`,
-        `${itemB?.name || 'Doc B'} emphasizes backend database connections and memory optimization.`,
-        `Resource allocation estimates differ by 18% in execution budget allocations.`
-      ]
-    });
+    triggerToast('Comparing documents with GPT OSS 120B...');
+    const textOf = (d) => excerpt(d.content || d.detailedSummary || d.briefSummary || '', 9000);
+    try {
+      const result = await chat([
+        {
+          role: 'system',
+          content: 'Compare two documents using only their text. Return ONLY JSON: {"similarity": <0-100 integer>, "commonPoints": ["3-5 specific shared points"], "differences": ["3-5 specific differences naming which document"]}'
+        },
+        {
+          role: 'user',
+          content: `Document A: ${itemA.name}\n${textOf(itemA)}\n\n---\n\nDocument B: ${itemB.name}\n${textOf(itemB)}`
+        }
+      ], { json: true });
+      setCompareResult({
+        similarity: Math.max(0, Math.min(100, Math.round(Number(result.similarity) || 0))),
+        commonPoints: result.commonPoints || [],
+        differences: result.differences || []
+      });
+    } catch (err) {
+      triggerToast(`Comparison failed: ${err.message}`);
+    }
   };
 
   const handleBotSend = async (e) => {
@@ -521,14 +547,14 @@ Core Specifications:
     setBotInput('');
 
     try {
-      const response = await groq.chat.completions.create({
-        messages: [
-          { role: 'system', content: 'You are the CloudDoc AI Assistant powered by GPT OSS 120B. Provide helpful and concise answers regarding user documents and cloud features.' },
-          { role: 'user', content: userMsg }
-        ],
-        model: 'openai/gpt-oss-120b'
-      });
-      const botReply = response.choices[0].message.content;
+      const context = selectedDoc.name
+        ? `The user is currently viewing "${selectedDoc.name}". Its text:\n${excerpt(selectedDoc.content || selectedDoc.detailedSummary || '', 8000)}`
+        : 'The user has no document selected.';
+      const botReply = await chat([
+        { role: 'system', content: `You are the CloudDoc AI Assistant powered by GPT OSS 120B. Give concise, helpful answers about the user's documents and CloudDoc features (upload, adaptive reading, knowledge graph, gap detector, Q&A, compare, study mode, file converter for PDF/Word/PowerPoint/Excel/images). ${context}` },
+        ...botMessages.slice(-6).map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', content: m.text })),
+        { role: 'user', content: userMsg }
+      ]);
       setBotMessages(prev => [...prev, { sender: 'bot', text: botReply }]);
     } catch (err) {
       setBotMessages(prev => [...prev, { sender: 'bot', text: 'I am here to help you navigate CloudDoc AI! You can upload real files, run Knowledge Gap Detection, test Adaptive Reading Mode, or compare documents.' }]);
@@ -680,6 +706,7 @@ Core Specifications:
               { id: 'ask', label: 'Ask Document', icon: MessageSquare },
               { id: 'compare', label: 'Compare Docs', icon: Layers },
               { id: 'study', label: 'Study Mode', icon: BookOpen },
+              { id: 'convert', label: 'File Converter', icon: RefreshCw },
               { id: 'profile', label: 'User Profile', icon: User }
             ].map(item => {
               const Icon = item.icon;
@@ -1241,8 +1268,8 @@ Core Specifications:
                       onChange={e => setNewQuestion(e.target.value)}
                       className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
                     />
-                    <button type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors">
-                      Ask AI
+                    <button type="submit" disabled={isAsking} className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors">
+                      {isAsking ? 'Thinking...' : 'Ask AI'}
                     </button>
                   </form>
 
@@ -1368,16 +1395,15 @@ Core Specifications:
                       if (!selectedDoc.name) return;
                       triggerToast(`Generating comprehensive study set for ${selectedDoc.name}...`);
                       try {
-                        const response = await groq.chat.completions.create({
-                          messages: [
+                        const studySet = await chat([
                             {
                               role: 'system',
                               content: `You are an expert academic professor creating an exhaustive exam revision set. 
 Analyze the document titled "${selectedDoc.name}". 
-Context Details: ${selectedDoc.detailedSummary || selectedDoc.briefSummary || 'General cloud and software specifications.'}
+Document text: ${excerpt(selectedDoc.content || '', 12000) || selectedDoc.detailedSummary || selectedDoc.briefSummary || ''}
 Key Takeaways: ${selectedDoc.keyTakeaways?.join(', ') || 'N/A'}
 
-Generate 5 deep-dive flashcards and 5 distinct multiple-choice questions covering every core topic, architectural layer, and specification in this document. Ensure ALL 4 options in each MCQ are plausible and topic-specific.
+Generate 5 deep-dive flashcards and 5 distinct multiple-choice questions covering every core topic, architectural layer, and specification in this document. Ensure ALL 4 options in each MCQ are plausible and topic-specific, and vary which option is correct (the "correct" index), instead of always 0.
 
 Return ONLY a valid JSON object strictly formatted as:
 {
@@ -1426,12 +1452,9 @@ Return ONLY a valid JSON object strictly formatted as:
                               role: 'user',
                               content: `Generate comprehensive exam questions covering every section of: ${selectedDoc.name}`
                             }
-                          ],
-                          model: 'openai/gpt-oss-120b',
-                          response_format: { type: "json_object" }
-                        });
+                          ], { json: true });
 
-                        const generatedStudy = JSON.parse(response.choices[0].message.content);
+                        const generatedStudy = studySet;
                         
                         // Update active document's studyMode state
                         setDocuments(prevDocs => prevDocs.map(doc => {
@@ -1550,6 +1573,9 @@ Return ONLY a valid JSON object strictly formatted as:
           </div>
         )}
         {/* USER PROFILE VIEW */}
+        {/* FILE CONVERTER VIEW */}
+        {activeTab === 'convert' && <ConvertTab onToast={triggerToast} />}
+
         {activeTab === 'profile' && (
           <div className="space-y-6 max-w-2xl mx-auto">
             <div>
