@@ -522,7 +522,7 @@ Core Specifications:
       const result = await chat([
         {
           role: 'system',
-          content: 'Compare two documents using only their text. Return ONLY JSON: {"similarity": <0-100 integer>, "commonPoints": ["3-5 specific shared points"], "differences": ["3-5 specific differences naming which document"]}'
+          content: 'Compare two documents strictly using only their text. Never invent facts, numbers or topics not present in either text; if the documents are unrelated, say so and give a low similarity. Return ONLY JSON: {"similarity": <0-100 integer>, "commonPoints": ["3-5 specific shared points"], "differences": ["3-5 specific differences naming which document"]}'
         },
         {
           role: 'user',
